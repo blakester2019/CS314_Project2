@@ -117,9 +117,7 @@ int main(int argc, char** argv)
   
   // Throw error if no file was passed
   if (!filefsname)
-  {
     exitusage(argv[0]);
-  }
 
   // Open the file
   if ((fd = open(fsname, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR)) == -1)
@@ -131,9 +129,7 @@ int main(int argc, char** argv)
   {
     // Check if it is a new file or not
     if (zerosize(fd))
-    {
       newfs = 1;
-    }
     
     // Create the 10MB fs file if it is new
     if (newfs)
