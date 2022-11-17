@@ -2,9 +2,10 @@
 
 unsigned char* fs;
 struct superBlock* superBlock;
-unsigned int* bitmap[MAX_BLOCKS];
-struct inode* inodesBlock[MAX_INODES];
+unsigned int** bitmap;
+struct inode** inodesBlock;
 struct directory rootDirectory[MAX_DIR_FILES];
+struct dataBlock* DB;
 
 
 void mapfs(int fd){
@@ -26,22 +27,14 @@ void unmapfs(){
  *  bitmap, inodes block, and the root dir using fwrite, 
  *    + inits superblock and bitmap
  * 
- *  fname: name of the of the filesystems file
- * 
  */
-void formatfs(char* fname){
-  //write superblock
-  FILE* fsFile = fopen(fname, "w+");
-  initSuperBlock(superBlock);
-  fwrite(superBlock, sizeof(struct superBlock), 1, fsFile);
-  //write bitmap
-  initBitmap(bitmap);
-  fwrite(bitmap, (sizeof(unsigned int) * MAX_BLOCKS), 1, fsFile);
-  //write inodeblock
-  fwrite(inodesBlock, (sizeof(struct inode) * MAX_INODES), 1, fsFile);
-  //write root directory
-  fwrite(&rootDirectory, (sizeof(struct directory) * MAX_DIR_FILES), 1, fsFile);
-  fclose(fsFile);
+void formatfs(){
+  struct superBlock* SB = fs;  
+  initSuperBlock(SB);
+  unsigned int** bm = fs + sizeof(struct superBlock);
+  initBitmap(bm);
+  inodesBlock = fs + sizeof(struct superBlock) + (sizeof(unsigned int) * MAX_BLOCKS);
+  DB = fs + sizeof(struct superBlock) + (sizeof(unsigned int) * MAX_BLOCKS) + (sizeof(struct inode) * MAX_INODES);
 }
 
 /*
@@ -55,16 +48,8 @@ void formatfs(char* fname){
  *   
  *  no return value as its changing the ptrs
  */
-void loadfs(char* fname){
-  FILE* fsFile = fopen(fname, "r");
-  fread(superBlock, sizeof(struct superBlock), 1, fsFile);
-  for(int i = 0; i < MAX_BLOCKS; i++) {
-    fread(bitmap[i], sizeof(unsigned int), 1, fsFile);
-  }
-  for(int i = 0; i < MAX_INODES; i++) {
-    fread(inodesBlock[i], sizeof(struct inode), 1, fsFile);
-  }
-  fclose(fsFile);
+void loadfs(){
+  
 }
 
 
@@ -101,9 +86,9 @@ void extractfilefs(char* fname){
  */
 
 void initSuperBlock(struct superBlock* superBlock) {
-  superBlock->numBlocks = MAX_BLOCKS * 10;
+  superBlock->numBlocks = 45;
   superBlock->blockSize = 512; //prolly need to make const for this
-  superBlock->numInodes = MAX_INODES;
+  superBlock->numInodes = 78;
 }
 
 /*
@@ -116,7 +101,7 @@ void initSuperBlock(struct superBlock* superBlock) {
  *  
  */
 
-void initBitmap(unsigned int* bitmap[]) {
+void initBitmap(unsigned int** bitmap) {
   for(int i = 0; i < MAX_BLOCKS; i++) {
     bitmap[i] = 0;
   }

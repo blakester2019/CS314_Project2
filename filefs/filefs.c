@@ -61,55 +61,56 @@ int main(int argc, char** argv){
   if (filefsname){
     exitusage(argv[0]);
   }
-
-  if ((fd = open(argv[2], O_CREAT | O_RDWR, S_IRUSR | S_IWUSR)) == -1){
-    perror("open failed");
-    exit(EXIT_FAILURE);
-  }
-  else{
-    if (zerosize(fd)){
-      newfs = 1;
-      printf("yo im new\n");
-    }
-    
-    if (newfs) {
-      if (lseek(fd, FSSIZE-1, SEEK_SET) == -1){
-        perror("seek failed");
-        exit(EXIT_FAILURE);
-      }
-      else{
-        if(write(fd, "\0", 1) == -1){
-          perror("write failed");
-          exit(EXIT_FAILURE);
-        }
-      }
-    }
-  }
   
+  fd = open(argv[2], O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+
+  if (zerosize(fd)){
+    newfs = 1;
+    printf("yo im new\n");
+  }
+    
+  //   if (newfs) {
+  //     if (lseek(fd, FSSIZE-1, SEEK_SET) == -1){
+  //       perror("seek failed");
+  //       exit(EXIT_FAILURE);
+  //     }
+  //     else{
+  //       if(write(fd, "\0", 1) == -1){
+  //         perror("write failed");
+  //         exit(EXIT_FAILURE);
+  //       }
+  //     }
+  //   }
+  // }
+  printf("hai");
+  lseek(fd, FSSIZE-1, SEEK_SET);
+  write(fd, "\0", 1);
+  printf("hai");
+
   printf("yo we can seek and write");
   mapfs(fd);
   
   if (newfs){
-    formatfs(argv[1]); //pls put the right argv here :)
+    formatfs(argv[2]); //pls put the right argv here :)
   }
   printf("yo we formatted it\n");
-  loadfs(argv[1]);
+  loadfs(argv[2]);
   printf("yo its loaded\n");
-  if (add){
-    addfilefs(toadd);
-  }
+  // if (add){
+  //   addfilefs(toadd);
+  // }
 
-  if (remove){
-    removefilefs(toremove);
-  }
+  // if (remove){
+  //   removefilefs(toremove);
+  // }
 
-  if (extract){
-    extractfilefs(toextract);
-  }
+  // if (extract){
+  //   extractfilefs(toextract);
+  // }
 
-  if(list){
-    lsfs();
-  }
+  // if(list){
+  //   lsfs();
+  // }
 
   unmapfs();
   

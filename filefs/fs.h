@@ -36,9 +36,13 @@ struct directory {
     int inodeNum;
 };
 
+struct dataBlock {
+    int randomJunk;
+};
+
 void mapfs(int fd);
 void unmapfs();
-void formatfs(char* fname);
+void formatfs();
 void loadfs();
 void lsfs();
 void addfilefs(char* fname);
