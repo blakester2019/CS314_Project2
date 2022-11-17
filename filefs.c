@@ -18,7 +18,7 @@
 typedef struct Directory
 {
   char name[255];
-  char parentDirectory[255];
+  int inode_id;
 } Directory;
 
 typedef struct File
