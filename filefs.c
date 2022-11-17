@@ -14,6 +14,7 @@
 
 #include "fs.h"
 
+// File System Structs
 typedef struct Directory
 {
   char name[255];
@@ -57,6 +58,7 @@ typedef struct Data
   DataBlock blocks[10000];
 } Data;
 
+// Prototypes
 int zerosize(int fd);
 void exitusage(char* pname);
 void formatNewFS(char* fsname);
@@ -68,6 +70,8 @@ FBL fbl;
 inode inodes[100];
 Data data;
 
+
+// ---- MAIN ----
 int main(int argc, char** argv)
 {  
   int opt;
@@ -143,32 +147,36 @@ int main(int argc, char** argv)
   
 
   mapfs(fd);
-
-  if (newfs)
-  {
-    // formatfs();
-  }
-
-  loadfs();
   
   if (add)
   {
-    // addfilefs(toadd);
+    // Create directories such as "a/b/c.txt" (toadd)
+    // Find First Inode not in use
+    // find size of c.txt to determine how many blocks --> UPPER_BOUND(size / 512)
+    // Find blocks not in use from BFL
+    // Populate blocks and add block index to inode struct
   }
 
   if (remove)
   {
-    // removefilefs(toremove);
+    // Find directory containing toremove
+    // Find associated inode (do not remove yet)
+    // Clear data blocks and flip the blocks to free in the FBL
+    // Set inode to not in use
+    // Also keep in mind we need to remove any directories which do not
+    // contain a "regular" file (I think we need to do this)
   }
 
   if (extract)
   {
-    // extractfilefs(toextract);
+    // Find inode associated with toextract
+    // Read blocks from the inode 'blocks' array
+    // Extract concatanation of blocks to stdout
   }
 
   if(list)
   {
-    // lsfs();
+    // Confused how to attatch file names to inodes. 
   }
 
   unmapfs();
