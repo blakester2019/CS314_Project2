@@ -151,6 +151,7 @@ int main(int argc, char** argv)
     // find size of c.txt to determine how many blocks --> UPPER_BOUND(size / 512)
     // Find blocks not in use from BFL
     // Populate blocks and add block index to inode struct
+    // Truncate fs file and write SB, FBL, inodes, and Data
   }
 
   if (remove)
@@ -161,6 +162,7 @@ int main(int argc, char** argv)
     // Set inode to not in use
     // Also keep in mind we need to remove any directories which do not
     // contain a "regular" file (I think we need to do this)
+    // Truncate fs file and write SB, FBL, inodes, and data
   }
 
   if (extract)
