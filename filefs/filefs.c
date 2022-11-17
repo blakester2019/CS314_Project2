@@ -58,18 +58,18 @@ int main(int argc, char** argv){
     }
   }
   
-  
-  if (!filefsname){
+  if (filefsname){
     exitusage(argv[0]);
   }
 
-  if ((fd = open(fsname, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR)) == -1){
+  if ((fd = open(argv[2], O_CREAT | O_RDWR, S_IRUSR | S_IWUSR)) == -1){
     perror("open failed");
     exit(EXIT_FAILURE);
   }
   else{
     if (zerosize(fd)){
       newfs = 1;
+      printf("yo im new\n");
     }
     
     if (newfs) {
@@ -86,15 +86,15 @@ int main(int argc, char** argv){
     }
   }
   
-
+  printf("yo we can seek and write");
   mapfs(fd);
   
   if (newfs){
-    formatfs("im a filename"); //pls put the right argv here :)
+    formatfs(argv[1]); //pls put the right argv here :)
   }
-
-  loadfs();
-  
+  printf("yo we formatted it\n");
+  loadfs(argv[1]);
+  printf("yo its loaded\n");
   if (add){
     addfilefs(toadd);
   }

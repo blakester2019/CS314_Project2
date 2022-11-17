@@ -16,19 +16,6 @@
 
 extern unsigned char* fs;
 
-void mapfs(int fd);
-void unmapfs();
-void formatfs(char* fname);
-void loadfs();
-void lsfs();
-void addfilefs(char* fname);
-void removefilefs(char* fname);
-void extractfilefs(char* fname);
-
-/* Max's added functions */
-void initSuperBlock(struct superBlock* superBlock);
-void initBitmap(unsigned int* bitmap[]);
-
 struct superBlock { // might add locations of inode blocks, bitmap, and root dir too :)
     int numBlocks;
     int blockSize;
@@ -48,5 +35,18 @@ struct directory {
     char fileName[MAX_FILE_NAME_SIZE];
     int inodeNum;
 };
+
+void mapfs(int fd);
+void unmapfs();
+void formatfs(char* fname);
+void loadfs();
+void lsfs();
+void addfilefs(char* fname);
+void removefilefs(char* fname);
+void extractfilefs(char* fname);
+
+/* Max's added functions */
+void initSuperBlock(struct superBlock* superBlock);
+void initBitmap(unsigned int* bitmap[]);
 
 #endif
