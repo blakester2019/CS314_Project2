@@ -19,6 +19,7 @@ typedef struct File
 {
   char name[255];
   int inode_id;
+  int parent_inode;
 } File;
 
 typedef struct Directories
@@ -55,6 +56,13 @@ typedef struct Data
   DataBlock blocks[10000];
 } Data;
 
+// Struct Declarations
+SuperBlock SB;
+FBL fbl;
+inode inodes[100];
+Directories dirs;
+Data data;
+
 // Prototypes
 int zerosize(int fd);
 void exitusage(char* pname);
@@ -63,14 +71,9 @@ void loadFileSystem(char* fsname);
 int findFBLIndex(int start, int end);
 int findInodeIndex();
 int fileExists(char* filename);
-
-// Struct Declarations
-SuperBlock SB;
-FBL fbl;
-inode inodes[100];
-Directories dirs;
-Data data;
-
+void insertFileIntoDirs(char* fname, int fbl_index, int inode_index, int prevInode);
+void updateInode(int inode_index, int IsDir, int size, int fbl_index);
+void updateFileSystem(char* fsname);
 
 // ---- MAIN ----
 int main(int argc, char** argv)
@@ -141,7 +144,6 @@ int main(int argc, char** argv)
   }
   
   loadFileSystem(fsname);
-  
 
   mapfs(fd);
   
@@ -169,50 +171,85 @@ int main(int argc, char** argv)
     printf("File: %s\n", tokenArray[counter - 1]);
 
     // Insert Directories
+    int prevInode = -1;
     for (int i = 0; i < counter - 1; i++)
     {
-      printf("%d\n", i);
       int fbl_index = findFBLIndex(0, 150);
       int inode_index = findInodeIndex();
-      // New File Object For Directories
-      File newDirectory;
-      strcpy(newDirectory.name, tokenArray[i]);
-      newDirectory.inode_id = inode_index;
-      // Update inode
-      inodes[inode_index].IsDir = 1;
-      inodes[inode_index].size = 0;
-      inodes[inode_index].blocks[0] = fbl_index;
+      insertFileIntoDirs(tokenArray[i], fbl_index, inode_index, prevInode);
+      updateInode(inode_index, 1, 0, fbl_index);
+      prevInode = inode_index;
     }
     
     // Get Stats for file
-    struct stat st;
     if (!fileExists(tokenArray[counter - 1]))
     {
       printf("No file named %s\n", tokenArray[counter - 1]);
       exit(-1);
     }
+
+    struct stat st;
     stat(tokenArray[counter - 1], &st);
     int size = st.st_size;
+    printf("New File Size: %d\n", size);
 
     // Create File Object for File
-    int numBlocks = (size + (512 - 1)) / 512;
     int inode_index = findInodeIndex();
-    File newFile;
-    strcpy(newFile.name, tokenArray[counter - 1]);
-    newFile.inode_id = inode_index;
-
-    // Update inode
-    inodes[inode_index].IsDir = 0;
-    inodes[inode_index].size = size;
+    int fbl_index = findFBLIndex(0, 150);
+    insertFileIntoDirs(tokenArray[counter - 1], fbl_index, inode_index, prevInode);
+    updateInode(inode_index, 0, size, fbl_index);
 
     // TODO: Insert data into blocks
+    int numBlocks = (size + (512 - 1)) / 512;
     int block_ids[numBlocks];
     for (int i = 0; i < numBlocks; i++)
+    {
       block_ids[i] = findFBLIndex(150, 10150);
+      inodes[inode_index].blocks[i] = block_ids[i];
+    }
+
+    FILE *fp = fopen(tokenArray[counter - 1], "r");
+    int remaining = size;
+    for (int i = 0; i < numBlocks; i++)
+    {
+      char buffer[512];
+      if (remaining >= 511)
+      {
+        fread(buffer, 511, 1, fp);
+        remaining = remaining - 511;
+      }
+      else
+      {
+        fread(buffer, remaining, 1, fp);
+        remaining = 0;
+      }
+      strcpy(data.blocks[block_ids[i]].data, buffer);
+    }
+    printf("Data Block\n");
+    for (int i = 0; i < numBlocks; i++)
+    {
+      printf("STARTING BLOCK %d\n", block_ids[i]);
+      printf("%s\n", data.blocks[block_ids[i]].data);
+    }
+
     
-    // Find blocks not in use from BFL
-    // Populate blocks and add block index to inode struct
+
+    // Printing stuff
+    for (int i = 0; i < 150; i++)
+    {
+      if (fbl.blocks[i] == 1)
+      {
+        File testDir = dirs.files[i];
+        printf("Some File or Directory: %s\n", testDir.name);
+      }
+    }
+
+    printf("Blocks for file:\n");
+    for (int i = 0; i < numBlocks; i++)
+      printf("%d\n", block_ids[i]);
+    
     // Truncate fs file and write SB, FBL, inodes, and Data
+    updateFileSystem(fsname);
 
     // Free token array
     for (int i = 0; i < 50; i++)
@@ -235,6 +272,36 @@ int main(int argc, char** argv)
     // Find inode associated with toextract
     // Read blocks from the inode 'blocks' array
     // Extract concatanation of blocks to stdout
+    char* token;
+    char* tokenArray[50];
+    
+    for (int i = 0; i < 50; i++)
+    {
+      tokenArray[i] = malloc(255);
+      strcpy(tokenArray[i], "NULL");
+    }
+    
+    int counter = 0;
+    token = strtok(toextract, "/\\");
+    while (token != NULL)
+    {
+      strcpy(tokenArray[counter], token);
+      counter++;
+      token = strtok(NULL, "/\\");
+    }
+    
+    for (int i = 0; i < counter - 1; i++)
+    {
+      for (int j = 0; j < 100; j++)
+      {
+        File temp = dirs.files[j];
+        if (strcmp(temp.name, tokenArray[i]) == 0)
+        {
+          printf("Found\n");
+        }
+      }
+    }
+    
   }
 
   if(list)
@@ -325,6 +392,7 @@ int findFBLIndex(int start, int end)
   {
     if (fbl.blocks[i] == 0)
     {
+      printf("Flipped Block at %d\n", i);
       fbl.blocks[i] = 1;
       return i;
     }
@@ -353,4 +421,43 @@ int fileExists(char* filename)
     return 1;
   }
   return 0;
+}
+
+void insertFileIntoDirs(char* fname, int fbl_index, int inode_index, int prevInode)
+{
+  File newDirectory;
+  strcpy(newDirectory.name, fname);
+  newDirectory.inode_id = inode_index;
+    if (prevInode >= 0)
+      newDirectory.parent_inode = prevInode;
+  dirs.files[fbl_index] = newDirectory;
+}
+
+void updateInode(int inode_index, int IsDir, int size, int fbl_index)
+{
+  inodes[inode_index].IsDir = IsDir;
+  inodes[inode_index].size = size;
+  if (IsDir)
+    inodes[inode_index].blocks[0] = fbl_index;
+}
+
+void updateFileSystem(char* fsname)
+{
+  FILE* fp = fopen("temp", "a");
+
+  if (!fp)
+  {
+    printf("Could not open file\n");
+    exit(-1);
+  }
+  
+  fwrite(&SB, sizeof(SuperBlock), 1, fp);
+  fwrite(&fbl, sizeof(FBL), 1, fp);
+  fwrite(&inodes, sizeof(inode), 100, fp);
+  fwrite(&dirs, sizeof(Directories), 1, fp);
+  fwrite(&data, sizeof(Data), 1, fp);
+  fclose(fp);
+
+  remove(fsname);
+  rename("temp", fsname);
 }
