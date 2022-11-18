@@ -222,6 +222,10 @@ int main(int argc, char** argv)
     }
 
     // MAXS PROBLEM FROM HERE
+    // Counter: How many different parts are in path (example: /a/b/c/fs.c = 4)
+    // Token array would be ["a", "b", "c", "fs.c"] where tokenArray[counter - 1] is the filename
+    // numBlocks - how many blocks the file needs
+    // block_ids array is to show which blocks the inode is going to use (ex. [5, 77, 4, 52])
     FILE *fp = fopen(tokenArray[counter - 1], "r");
     int remaining = size;
     for (int i = 0; i < numBlocks; i++) {
@@ -497,7 +501,7 @@ int searchDirs(char* arr[], int counter)
   return checkIfDirExists(arr[counter - 1], parent_inode);
 }
 
-// MAXS PROBLEM
+// MAXS PROBLEM FROM HERE
 // Should iterate through the blocks of an inode and print the contents of the blocks in "data"
 void extractInodeBlocks(int inode_id)
 {
@@ -515,6 +519,7 @@ void extractInodeBlocks(int inode_id)
   }
   puts(buffer);
 }
+// To here
 
 // Checks if a directory exists. If so, returns that directories inode_id
 int checkIfDirExists(char* fname, int parent_inode)
