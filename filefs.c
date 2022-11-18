@@ -15,18 +15,16 @@
 #include "fs.h"
 
 // File System Structs
-typedef struct Directory
-{
-  char name[255];
-  int inode_id;
-} Directory;
-
 typedef struct File
 {
   char name[255];
   int inode_id;
-  char parentDirectory[255];
 } File;
+
+typedef struct Directories
+{
+  File files[150];
+} Directories;
 
 typedef struct SuperBlock
 {
@@ -35,15 +33,14 @@ typedef struct SuperBlock
 
 typedef struct FBL
 {
-  int blocks[10000];
+  int blocks[10150];
 } FBL;
 
 typedef struct inode
 {
   int id;
-  char name[255];
   int InUse;
-  char type[3]; // "REG" or "DIR"
+  int IsDir;
   int size;
   int blocks[100];
 } inode;
@@ -63,11 +60,15 @@ int zerosize(int fd);
 void exitusage(char* pname);
 void formatNewFS(char* fsname);
 void loadFileSystem(char* fsname);
+int findFBLIndex(int start, int end);
+int findInodeIndex();
+int fileExists(char* filename);
 
 // Struct Declarations
 SuperBlock SB;
 FBL fbl;
 inode inodes[100];
+Directories dirs;
 Data data;
 
 
@@ -147,11 +148,75 @@ int main(int argc, char** argv)
   if (add)
   {
     // Create directories such as "a/b/c.txt" (toadd)
-    // Find First Inode not in use
-    // find size of c.txt to determine how many blocks --> UPPER_BOUND(size / 512)
+    char* token;
+    char* tokenArray[50];
+    
+    for (int i = 0; i < 50; i++)
+    {
+      tokenArray[i] = malloc(255);
+      strcpy(tokenArray[i], "NULL");
+    }
+    
+    int counter = 0;
+    token = strtok(toadd, "/\\");
+    while (token != NULL)
+    {
+      strcpy(tokenArray[counter], token);
+      counter++;
+      token = strtok(NULL, "/\\");
+    }
+
+    printf("File: %s\n", tokenArray[counter - 1]);
+
+    // Insert Directories
+    for (int i = 0; i < counter - 1; i++)
+    {
+      printf("%d\n", i);
+      int fbl_index = findFBLIndex(0, 150);
+      int inode_index = findInodeIndex();
+      // New File Object For Directories
+      File newDirectory;
+      strcpy(newDirectory.name, tokenArray[i]);
+      newDirectory.inode_id = inode_index;
+      // Update inode
+      inodes[inode_index].IsDir = 1;
+      inodes[inode_index].size = 0;
+      inodes[inode_index].blocks[0] = fbl_index;
+    }
+    
+    // Get Stats for file
+    struct stat st;
+    if (!fileExists(tokenArray[counter - 1]))
+    {
+      printf("No file named %s\n", tokenArray[counter - 1]);
+      exit(-1);
+    }
+    stat(tokenArray[counter - 1], &st);
+    int size = st.st_size;
+
+    // Create File Object for File
+    int numBlocks = (size + (512 - 1)) / 512;
+    int inode_index = findInodeIndex();
+    File newFile;
+    strcpy(newFile.name, tokenArray[counter - 1]);
+    newFile.inode_id = inode_index;
+
+    // Update inode
+    inodes[inode_index].IsDir = 0;
+    inodes[inode_index].size = size;
+
+    // TODO: Insert data into blocks
+    int block_ids[numBlocks];
+    for (int i = 0; i < numBlocks; i++)
+      block_ids[i] = findFBLIndex(150, 10150);
+    
     // Find blocks not in use from BFL
     // Populate blocks and add block index to inode struct
     // Truncate fs file and write SB, FBL, inodes, and Data
+
+    // Free token array
+    for (int i = 0; i < 50; i++)
+      free(tokenArray[i]);
   }
 
   if (remove)
@@ -203,6 +268,7 @@ void formatNewFS(char* fsname)
   SuperBlock t_SB;
   FBL t_fbl;
   inode t_inodes[100];
+  Directories t_dirs;
   Data t_data;
 
   FILE* fp = fopen(fsname, "a");
@@ -212,27 +278,21 @@ void formatNewFS(char* fsname)
     printf("Could not open file\n");
     exit(-1);
   }
-
-  t_SB.currInode = 9;
-  fwrite(&t_SB, sizeof(SuperBlock), 1, fp);
   
   for (int i = 0; i < 10000; i++)
-  {
     t_fbl.blocks[i] = 0;
-  }
   
   for (int i = 0; i < 100; i++)
   {
     t_inodes[i].InUse = 0;
     for (int j = 0; j < 100; j++)
-    {
       t_inodes[i].blocks[j] = -1;
-    }
   }
   
-
+  fwrite(&t_SB, sizeof(SuperBlock), 1, fp);
   fwrite(&t_fbl, sizeof(t_fbl), 1, fp);
   fwrite(&t_inodes, sizeof(inode), 100, fp);
+  fwrite(&t_dirs, sizeof(Directories), 1, fp);
   fwrite(&t_data, sizeof(Data), 1, fp);
 
   fseek(fp, FSSIZE, SEEK_SET);
@@ -254,6 +314,43 @@ void loadFileSystem(char* fsname)
   fread(&SB, sizeof(SuperBlock), 1, fp);
   fread(&fbl, sizeof(FBL), 1, fp);
   fread(&inodes, sizeof(inode), 100, fp);
-  fread(&data, sizeof(DataBlock), 10000, fp);
+  fread(&dirs, sizeof(Directories), 1, fp);
+  fread(&data, sizeof(Data), 1, fp);
   fclose(fp);
+}
+
+int findFBLIndex(int start, int end)
+{
+  for (int i = start; i < end; i++)
+  {
+    if (fbl.blocks[i] == 0)
+    {
+      fbl.blocks[i] = 1;
+      return i;
+    }
+  }
+  return -1;
+}
+
+int findInodeIndex()
+{
+  for (int i = 0; i < 100; i++)
+  {
+    if (inodes[i].InUse == 0)
+    {
+      inodes[i].InUse = 1;
+      return i;
+    }
+  }
+}
+
+int fileExists(char* filename)
+{
+  FILE* fp = fopen(filename, "r");
+  if (fp)
+  {
+    fclose(fp);
+    return 1;
+  }
+  return 0;
 }
