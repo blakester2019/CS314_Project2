@@ -84,6 +84,8 @@ void resetInode(int inode_id);
 // Dev Prototypes
 void printDirs();
 void printFBL(int start, int end);
+void printInodes();
+void printInodeBlocks(int inode_id);
 
 // ---- MAIN ----
 int main(int argc, char** argv)
@@ -205,7 +207,6 @@ int main(int argc, char** argv)
     struct stat st;
     stat(tokenArray[counter - 1], &st);
     int size = st.st_size;
-    printf("New File Size: %d\n", size);
 
     // Create File Object for File
     int inode_index = findInodeIndex();
@@ -228,21 +229,21 @@ int main(int argc, char** argv)
     // block_ids array is to show which blocks the inode is going to use (ex. [5, 77, 4, 52])
     FILE *fp = fopen(tokenArray[counter - 1], "r");
     int remaining = size;
+    char buffers[numBlocks][512];
     for (int i = 0; i < numBlocks; i++) {
-      char buffer[512];
       if (remaining >= 511) {
-        strcpy(buffer, "");
-        fread(&buffer, 1, 511, fp);
+        strcpy(buffers[i], "");
+        fread(&buffers[i], 511, 1, fp);
         remaining = remaining - 511;
       }
       else {
-        strcpy(buffer, "");
-        fread(&buffer, 1, 1, fp);
-        printf("%s\n", buffer);
+        strcpy(buffers[i], "");
+        fread(&buffers[i], remaining, 1, fp);
         remaining = 0;
       }
-      strcpy(data.blocks[block_ids[i]].data, buffer);
+      strcpy(data.blocks[block_ids[i]].data, buffers[i]);
     }
+    fclose(fp);
     // DOWN TO HERE
     
     // Truncate fs file and write SB, FBL, inodes, and Data
@@ -501,22 +502,27 @@ int searchDirs(char* arr[], int counter)
   return checkIfDirExists(arr[counter - 1], parent_inode);
 }
 
-// MAXS PROBLEM FROM HERE
-// Should iterate through the blocks of an inode and print the contents of the blocks in "data"
+// Extracts from an inodes blocks to stdout
 void extractInodeBlocks(int inode_id)
 {
-  char buffer[inodes[inode_id].size + 512];
-  strcpy(buffer, "");
-  char blockBuffer[512];
-  int i = 0;
-  int currBlock = inodes[inode_id].blocks[i];
-  while (currBlock != -1)
-  {
-    strcpy(blockBuffer, data.blocks[currBlock].data);
-    strcat(buffer, blockBuffer);
+  int numBlocks = 0;
+  int i = 1;
+  while (inodes[inode_id].blocks[i] != -1) {
+    numBlocks++;
     i++;
-    currBlock = inodes[inode_id].blocks[i];
   }
+
+  int block_ids[numBlocks];
+  for (int i = 1; i <= numBlocks; i++) {
+    block_ids[i - 1] = inodes[inode_id].blocks[i];
+  }
+  
+  char buffer[inodes[inode_id].size];
+  strcpy(buffer, "");
+  for (int i = 0; i < numBlocks; i++) {
+    strcat(buffer, data.blocks[block_ids[i]].data);
+  }
+  fflush(stdout);
   puts(buffer);
 }
 // To here
@@ -587,13 +593,29 @@ void resetInode(int inode_id)
         strcpy(dirs.files[block_index].name, "");
         dirs.files[block_index].inode_id = 0;
         dirs.files[block_index].parent_inode = 0;
-        fbl.blocks[block_index] = 0;
-        inodes[inode_id].blocks[0] = -1;
       } else {
         strcpy(data.blocks[block_index].data, "");
-        inodes[inode_id].blocks[i] = -1;
       }
+      inodes[inode_id].blocks[i] = -1;
+      fbl.blocks[block_index] = 0;
     }
   }
   inodes[inode_id].InUse = 0;
+}
+
+void printInodes()
+{
+  for (int i = 0; i < 100; i++) {
+    printf("-------------\n");
+    printf("ID: %d\n", i);
+    printf("InUse: %d\n", inodes[i].InUse);
+  }
+}
+
+void printInodeBlocks(int inode_id)
+{
+  for (int i = 0; i < 100; i++)
+  {
+    printf("Blocks[%d]: %d\n", i, inodes[inode_id].blocks[i]);
+  }
 }
