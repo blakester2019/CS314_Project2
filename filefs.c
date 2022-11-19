@@ -81,7 +81,7 @@ void printFile(char* fname, int depth);
 void listFiles(int parent, int depth);
 void resetInode(int inode_id);
 
-// Dev Prototypes
+// Dev Debug Prototypes
 void printDirs();
 void printFBL(int start, int end);
 void printInodes();
@@ -158,7 +158,7 @@ int main(int argc, char** argv)
   
   if (add)
   {
-    // Create directories such as "a/b/c.txt" (toadd)
+    // Tokenize file to add
     char* token;
     char* tokenArray[50];
     
@@ -191,19 +191,20 @@ int main(int argc, char** argv)
       prevInode = inode_index;
     }
 
-    // Check if file already exists
+    // Check if file already exists in our file system
     next = checkIfDirExists(tokenArray[counter - 1], prevInode);
     if (next) {
       printf("This file already exists in this directory\n");
       exit(-1);
     }
     
-    // Get Stats for file
+    // Check if file exists (not in our fs)
     if (!fileExists(tokenArray[counter - 1])) {
       printf("No file named %s\n", tokenArray[counter - 1]);
       exit(-1);
     }
 
+    // Find file size
     struct stat st;
     stat(tokenArray[counter - 1], &st);
     int size = st.st_size;
@@ -214,7 +215,7 @@ int main(int argc, char** argv)
     insertFileIntoDirs(tokenArray[counter - 1], fbl_index, inode_index, prevInode);
     updateInode(inode_index, 0, size, fbl_index);
 
-    // Insert data into blocks
+    // Set up the number of blocks needed and blocks to be used
     int numBlocks = (size + (512 - 1)) / 512;
     int block_ids[numBlocks];
     for (int i = 0; i < numBlocks; i++) {
@@ -222,11 +223,7 @@ int main(int argc, char** argv)
       inodes[inode_index].blocks[i + 1] = block_ids[i];
     }
 
-    // MAXS PROBLEM FROM HERE
-    // Counter: How many different parts are in path (example: /a/b/c/fs.c = 4)
-    // Token array would be ["a", "b", "c", "fs.c"] where tokenArray[counter - 1] is the filename
-    // numBlocks - how many blocks the file needs
-    // block_ids array is to show which blocks the inode is going to use (ex. [5, 77, 4, 52])
+    // Populate blocks with file data
     FILE *fp = fopen(tokenArray[counter - 1], "r");
     int remaining = size;
     char buffers[numBlocks][512];
@@ -282,16 +279,11 @@ int main(int argc, char** argv)
     }
 
     resetInode(file_inode);
-    // Also keep in mind we need to remove any directories which do not
-    // contain a "regular" file (I think we need to do this)
     updateFileSystem(fsname);
   }
 
   if (extract)
   {
-    // Find inode associated with toextract
-    // Read blocks from the inode 'blocks' array
-    // Extract concatanation of blocks to stdout
     char* token;
     char* tokenArray[50];
     
@@ -328,7 +320,7 @@ int main(int argc, char** argv)
   return 0;
 } // end main
 
-
+// Checks if a file is has a size of zero
 int zerosize(int fd)
 {
   struct stat stats;
@@ -338,12 +330,14 @@ int zerosize(int fd)
   return 0;
 }
 
+// prints statement for usage failure
 void exitusage(char* pname)
 {
   fprintf(stderr, "Usage %s [-l] [-a path] [-e path] [-r path] -f name\n", pname);
   exit(EXIT_FAILURE);
 }
 
+// Formats a new file system. Creates key components for 10MB file
 void formatNewFS(char* fsname)
 {
   SuperBlock t_SB;
@@ -352,7 +346,7 @@ void formatNewFS(char* fsname)
   Directories t_dirs;
   Data t_data;
 
-  FILE* fp = fopen(fsname, "a");
+  FILE* fp = fopen(fsname, "w");
 
   if (!fp) {
     printf("Could not open file\n");
@@ -386,12 +380,13 @@ void formatNewFS(char* fsname)
   fwrite(&t_dirs, sizeof(Directories), 1, fp);
   fwrite(&t_data, sizeof(Data), 1, fp);
 
-  fseek(fp, FSSIZE, SEEK_SET);
-  fputs("End Of File", fp);
+  fseek(fp, FSSIZE - 1, SEEK_SET);
+  fputc('\0', fp);
 
   fclose(fp);
 }
 
+// Loads the file system
 void loadFileSystem(char* fsname)
 {
   FILE* fp = fopen(fsname, "r");
@@ -409,6 +404,7 @@ void loadFileSystem(char* fsname)
   fclose(fp);
 }
 
+// Returns the next available block from the free block list
 int findFBLIndex(int start, int end)
 {
   for (int i = start; i < end; i++) {
@@ -420,6 +416,7 @@ int findFBLIndex(int start, int end)
   return -1;
 }
 
+// Returns the next available inode
 int findInodeIndex()
 {
   for (int i = 0; i < 100; i++) {
@@ -430,6 +427,7 @@ int findInodeIndex()
   }
 }
 
+// Checks if a file exists. Not in our flie system, the linux one
 int fileExists(char* filename)
 {
   FILE* fp = fopen(filename, "r");
@@ -440,16 +438,18 @@ int fileExists(char* filename)
   return 0;
 }
 
+// Insert a type "File" into the directory
 void insertFileIntoDirs(char* fname, int fbl_index, int inode_index, int prevInode)
 {
   File newDirectory;
   strcpy(newDirectory.name, fname);
   newDirectory.inode_id = inode_index;
-    if (prevInode >= 0)
-      newDirectory.parent_inode = prevInode;
+  if (prevInode >= 0)
+    newDirectory.parent_inode = prevInode;
   dirs.files[fbl_index] = newDirectory;
 }
 
+// Updates an inode with the given parameters
 void updateInode(int inode_index, int IsDir, int size, int fbl_index)
 {
   inodes[inode_index].IsDir = IsDir;
@@ -457,9 +457,10 @@ void updateInode(int inode_index, int IsDir, int size, int fbl_index)
   inodes[inode_index].blocks[0] = fbl_index;
 }
 
+// Saves any changes made to the filesystem. Important after add/remove
 void updateFileSystem(char* fsname)
 {
-  FILE* fp = fopen("temp", "a");
+  FILE* fp = fopen("temp", "w");
 
   if (!fp) {
     printf("Could not open file\n");
@@ -471,6 +472,9 @@ void updateFileSystem(char* fsname)
   fwrite(&inodes, sizeof(inode), 100, fp);
   fwrite(&dirs, sizeof(Directories), 1, fp);
   fwrite(&data, sizeof(Data), 1, fp);
+
+  fseek(fp, FSSIZE - 1, SEEK_SET);
+  fputc('\0', fp);
   fclose(fp);
 
   remove(fsname);
@@ -603,6 +607,7 @@ void resetInode(int inode_id)
   inodes[inode_id].InUse = 0;
 }
 
+// Debeug tool
 void printInodes()
 {
   for (int i = 0; i < 100; i++) {
@@ -611,7 +616,7 @@ void printInodes()
     printf("InUse: %d\n", inodes[i].InUse);
   }
 }
-
+ // Debug tool
 void printInodeBlocks(int inode_id)
 {
   for (int i = 0; i < 100; i++)
