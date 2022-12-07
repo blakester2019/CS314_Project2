@@ -1,0 +1,13 @@
+to mount the file system:
+    mkdir Directory_name
+    ./filesytem Directory_name
+    cd Directory_name
+
+
+To add a file, you have to:
+    echo Whatever you want to put into your file  >> newfile
+
+    the mv function from dir to dir will fail.
+
+to unmount the filesystem:
+    fusermount -u Directory_name
