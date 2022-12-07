@@ -126,17 +126,14 @@ int main(int argc, char** argv)
   char* toadd = NULL;
   char* toremove = NULL;
   char* toextract = NULL;
-  char* fsname = NULL;
-  int fd = -1;
+  char* fsname = NULL;  int fd = -1;
   int newfs = 0;
   int filefsname = 0;
- 
-  struct stat fuse_bs;
-  lstat(argv[1], &fuse_bs);
-  if(S_ISDIR(fuse_bs.st_mode)) {
-    return fuse_main(argc, argv, &operations, NULL);
+  struct stat fusestr;
+  lstat(argv[1], &fusestr);  
+  if(S_ISDIR(fusestr.st_mode)) {
+        return fuse_main(argc, argv, &operations, NULL);
   }
-
   // Parse Passed Options
   while ((opt = getopt(argc, argv, "la:r:e:f:")) != -1) {
     switch (opt) {
@@ -159,7 +156,7 @@ int main(int argc, char** argv)
       filefsname = 1;
       fsname = strdup(optarg);
       break;
-    default:
+    default:     
       exitusage(argv[0]);
     }
   }
@@ -367,6 +364,7 @@ int zerosize(int fd)
 void exitusage(char* pname)
 {
   fprintf(stderr, "Usage %s [-l] [-a path] [-e path] [-r path] -f name\n", pname);
+  fprintf(stderr, "Or %s dir_name\n", pname);
   exit(EXIT_FAILURE);
 }
 
@@ -722,7 +720,7 @@ static int FSmknod(const char *fname, mode_t mode, dev_t rdev) {
 	fname++;
 	numFiles++;
 	numDataI++;
-    strcpy(fuseFiles[numFiles].name, fname);
+	strcpy(fuseFiles[numFiles].name, fname);
 	strcpy(data.blocks[numDataI].data, "");
 	return 0;
 }
