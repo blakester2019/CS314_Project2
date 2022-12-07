@@ -685,7 +685,7 @@ static int FSgetattr(const char *fname, struct stat *st) {
 		st->st_nlink = 2;                                  
 	}
 	else if (ifFile(fname) == 1) {
-		st->st_mode = S_IFREG | 0666;
+		st->st_mode = S_IFREG | 0644;
 		st->st_nlink = 1;
 		st->st_size = 1024;
 	}
